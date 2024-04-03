@@ -12,110 +12,91 @@
 
 #include "pipex.h"
 
-char	**get_paths(char **envp, char ***paths);
+char	**get_paths(char **envp, t_data *data);
 char	**add_slash(char **paths);
-char	**get_cmd(char *arg);
+int		open_files(t_data *data, char **argv, int argc);
+int		get_cmd(char *arg, t_data *data);
+int		find_path(t_data *data);
+int		child_process(t_data *data, int i, char **argv, char **envp);
 
 int	main(int argc, char **argv, char **envp)
 {
-	int		ends[2];
+	t_data	data;
 	int		pid;
-	char	**paths;
-	char	**cmd1;
-	char	**cmd2;
+	int		i;
 
-	if (argc != 5)
+	i = 0;
+	data.pipes = argc - 4;
+	if (data.pipes < 1)
 	{
 		perror("Error\nInvalid amount of arguments\n");
-		// return (-1);
-	}
-	if (!get_paths(envp, &paths))
-		return (-1);
-	pipe(ends);
-	pid = fork();
-	if (pid < 0)
-	{
-		perror("Error\nFork failed\n");
 		return (-1);
 	}
-	if (pid == 0) // first child process / cmd1
+	if (!get_paths(envp, &data) || !open_files(&data, argv, argc))
+		return (-1);
+	pipe(data.ends);
+	while (i <= data.pipes)
 	{
-		ft_printf("In child process\n");
-		close(ends[0]);
-		int	infile = open(argv[1], O_RDONLY);
-		if (infile < 0)
+		pid = fork();
+		if (pid < 0)
+		{
+			perror("Error\nFork failed\n");
 			return (-1);
-		dup2(infile, 0);
-		dup2(ends[1], 1);
-		cmd1 = get_cmd(argv[2]);
-		int i = 0;
-		while (paths[i])
-		{
-			ft_printf("%s\n", paths[i]);
-			if (execve(paths[i], cmd1, envp) == -1)
-			{
-				perror("Could not execute execve\n");
-				// return (-1);
-			}
-			i++;
 		}
-		close(infile);
-	}
-	else // parent process / cmd2
-	{
-		wait(NULL);
-		ft_printf("\n");
-		close(ends[1]);
-		ft_printf("In parent process\n");
-		int outfile = open(argv[4], O_RDWR);
-		if (outfile < 0)
-		//	return (-1);
-		dup2(ends[0], 0);
-		dup2(outfile, 1);
-		cmd2 = get_cmd(argv[3]);
-		int i = 0;
-		while (paths[i])
+		if (pid > 0) // parent process
 		{
-			if (execve(paths[i], cmd2, envp) == -1)
-			{
-				perror("Could not execute execve\n");
-				// return (-1);
-			}
-			i++;
+			close(data.ends[1]);
+			wait(NULL);
 		}
-		close(outfile);
+		if (pid == 0) // child process
+			child_process(&data, i, argv, envp);
+		i++;
 	}
+	return (0);
 }
 
-char	**get_paths(char **envp, char ***paths)
+char	**get_paths(char **envp, t_data *data)
 {
 	int		i;
-	char	*envpath;
+	char	*envpaths;
 
 	i = 0;
 	while (envp[i])
 		{
 			if (ft_strncmp(envp[i], "PATH", 4) == 0)
 			{
-				envpath = ft_substr(envp[i], 5, ft_strlen(envp[i]) - 5);
-				if (!envpath)
+				envpaths = ft_substr(envp[i], 5, ft_strlen(envp[i]) - 5);
+				if (!envpaths)
 					return (NULL);
-				*paths = ft_split(envpath, ':');
-				free(envpath);
-				if (*paths)
-					*paths = add_slash(*paths);
-				return (*paths);
+				data->paths = ft_split(envpaths, ':');
+				free(envpaths);
+				if (data->paths)
+					data->paths = add_slash(data->paths);
+				return (data->paths);
 			}
 			i++;
 		}
 		return (NULL);
 }
-char	**get_cmd(char *arg)
-{
-	char	**cmd;
 
-	cmd = ft_split(arg, 32);
-	return (cmd);
+int	open_files(t_data *data, char **argv, int argc)
+{
+	data->infile = open(argv[1], O_RDONLY);
+	data->outfile = open(argv[argc - 1], O_CREAT | O_RDWR | O_TRUNC, 0644);
+	if (data->infile < 0 || data->outfile < 0)
+	{
+		perror("Error opening a file\n");
+		return (-1);
+	}
+	return (1);
+}
+
+int	get_cmd(char *arg, t_data *data)
+{
+	data->cmd = ft_split(arg, 32);
+	if (!data->cmd)
+		return (-1);
+	return (1);
 }
 
 char **add_slash(char **paths)
@@ -136,4 +117,52 @@ char **add_slash(char **paths)
 		i++;
 	}
 	return (paths);
+}
+
+int	find_path(t_data *data)
+{
+	int		i;
+	char	*temp;
+
+	i = 0;
+	while (data->paths[i])
+	{
+		temp = ft_strjoin(data->paths[i], data->cmd[0]);
+		if (access(temp, F_OK) == 0)
+		{
+			data->path = temp;
+			return (1);
+		}
+		free(temp);
+		i++;
+	}
+	return (-1);
+}
+
+int	child_process(t_data *data, int i, char **argv, char **envp)
+{
+	if (i == 0) // first child
+	{
+		close(data->ends[0]);
+		close(data->outfile);
+		dup2(data->infile, 0);
+		dup2(data->ends[1], 1);
+	}
+	else
+	{
+		close(data->ends[1]);
+		close(data->infile);
+		dup2(data->ends[0], 0);
+		dup2(data->outfile, 1);
+	}
+	if (!get_cmd(argv[i + 2], data))
+		return (-1); // error close & free
+	if (!find_path(data))
+		return (-1); // error close & free
+	if (execve(data->path, data->cmd, envp) == -1)
+	{
+		perror("Could not execute execve\n");
+		// return (-1);
+	}
+	return (0);
 }
