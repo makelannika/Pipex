@@ -12,114 +12,121 @@
 
 #include "pipex.h"
 
-char	**get_paths(char **envp, t_data *data);
-char	**add_slash(char **paths);
-int		open_files(t_data *data, char **argv, int argc);
-int		get_cmd(char *arg, t_data *data);
-int		find_path(t_data *data);
-int		child_process(t_data *data, int i, char **argv, char **envp);
+char	**get_paths(char **envp, t_pipex *data);
+void	add_slash(t_pipex *data);
+int		get_cmd(char *arg, t_pipex *data);
+int		find_path(t_pipex *data);
+int		get_fds(t_pipex *data, int i, char **argv);
+void	do_cmd(t_pipex *data, char **envp, int i);
+void	first_child(t_pipex *data, char **argv);
+void	middle_child(t_pipex *data);
+void	last_child(t_pipex *data, char **argv);
 
 int	main(int argc, char **argv, char **envp)
 {
-	t_data	data;
-	int		pid;
+	t_pipex	data;
 	int		i;
 
+	if (argc < 5)
+		return (-1);
 	i = 0;
-	data.pipes = argc - 4;
-	if (data.pipes < 1)
-	{
-		perror("Error\nInvalid amount of arguments\n");
+	data.cmds = argc - 3;
+	data.pids = malloc(data.cmds * sizeof(int));
+	if (!data.pids)
 		return (-1);
-	}
-	if (!get_paths(envp, &data) || !open_files(&data, argv, argc))
+	if (!get_paths(envp, &data)) // free pids
 		return (-1);
-	pipe(data.ends);
-	while (i <= data.pipes)
+	while (i < data.cmds)
 	{
-		pid = fork();
-		if (pid < 0)
-		{
-			perror("Error\nFork failed\n");
-			return (-1);
-		}
-		if (pid > 0) // parent process
-		{
-			close(data.ends[1]);
-			wait(NULL);
-		}
-		if (pid == 0) // child process
-			child_process(&data, i, argv, envp);
+		get_fds(&data, i, argv);
+		if (!get_cmd(argv[i + 2], &data))
+			return (-1); // error close & free
+		if (!find_path(&data))
+			return (-1); // error close & free
+		do_cmd(&data, envp, i);
+		close(data.ends[0]);
+		close(data.ends[1]);
 		i++;
 	}
 	return (0);
 }
 
-char	**get_paths(char **envp, t_data *data)
+void	do_cmd(t_pipex *data, char **envp, int i)
+{
+	data->pids[i] = fork();
+	if (data->pids[i] < 0)
+	{
+		// error
+		return ;
+	}
+	if (data->pids[i] == 0)
+	{
+		close(data->read_end);
+		if (execve(data->path, data->cmd, envp) == -1)
+		{
+			perror("Could not execute execve\n");
+			return ;
+		}
+	}
+	else
+		wait(NULL); // waitpid
+}
+
+char	**get_paths(char **envp, t_pipex *data)
 {
 	int		i;
 	char	*envpaths;
 
 	i = 0;
 	while (envp[i])
+	{
+		if (ft_strncmp(envp[i], "PATH", 4) == 0)
 		{
-			if (ft_strncmp(envp[i], "PATH", 4) == 0)
-			{
-				envpaths = ft_substr(envp[i], 5, ft_strlen(envp[i]) - 5);
-				if (!envpaths)
-					return (NULL);
-				data->paths = ft_split(envpaths, ':');
-				free(envpaths);
-				if (data->paths)
-					data->paths = add_slash(data->paths);
-				return (data->paths);
-			}
-			i++;
+			envpaths = ft_substr(envp[i], 5, ft_strlen(envp[i]) - 5);
+			if (!envpaths)
+				return (NULL);
+			data->paths = ft_split(envpaths, ':');
+			free(envpaths);
+			if (data->paths)
+				add_slash(data);
+			return (data->paths);
 		}
-		return (NULL);
+		i++;
+	}
+	return (NULL);
 }
 
-int	open_files(t_data *data, char **argv, int argc)
+int	get_cmd(char *arg, t_pipex *data)
 {
-	data->infile = open(argv[1], O_RDONLY);
-	data->outfile = open(argv[argc - 1], O_CREAT | O_RDWR | O_TRUNC, 0644);
-	if (data->infile < 0 || data->outfile < 0)
+	data->cmd = ft_split(arg, 32);
+	if (!data->cmd)
 	{
-		perror("Error opening a file\n");
+		// free paths & pids
 		return (-1);
 	}
 	return (1);
 }
 
-int	get_cmd(char *arg, t_data *data)
-{
-	data->cmd = ft_split(arg, 32);
-	if (!data->cmd)
-		return (-1);
-	return (1);
-}
-
-char **add_slash(char **paths)
+void	add_slash(t_pipex *data)
 {
 	int		i = 0;
 	char	*temp;
 
-	while (paths[i])
+	while (data->paths[i])
 	{
-		temp = paths[i];
-		paths[i] = ft_strjoin(temp, "/");
+		temp = data->paths[i];
+		data->paths[i] = ft_strjoin(temp, "/");
 		free(temp);
-		if (paths[i] == NULL)
+		if (data->paths[i] == NULL)
 		{
-			// free array
-			return (NULL);
+			// free paths
+			return ;
 		}
 		i++;
 	}
-	return (paths);
 }
 
-int	find_path(t_data *data)
+int	find_path(t_pipex *data)
 {
 	int		i;
 	char	*temp;
@@ -139,30 +146,50 @@ int	find_path(t_data *data)
 	return (-1);
 }
 
-int	child_process(t_data *data, int i, char **argv, char **envp)
+int	get_fds(t_pipex *data, int i, char **argv)
 {
-	if (i == 0) // first child
-	{
-		close(data->ends[0]);
-		close(data->outfile);
-		dup2(data->infile, 0);
-		dup2(data->ends[1], 1);
-	}
+	if (pipe(data->ends))
+		return (-1); // free pids & paths
+	if (i == 0)
+		first_child(data, argv);
+	else if (i == data->cmds - 1)
+		last_child(data, argv);
 	else
-	{
-		close(data->ends[1]);
-		close(data->infile);
-		dup2(data->ends[0], 0);
-		dup2(data->outfile, 1);
-	}
-	if (!get_cmd(argv[i + 2], data))
-		return (-1); // error close & free
-	if (!find_path(data))
-		return (-1); // error close & free
-	if (execve(data->path, data->cmd, envp) == -1)
-	{
-		perror("Could not execute execve\n");
-		// return (-1);
-	}
+		middle_child(data);
 	return (0);
+}
+
+void	first_child(t_pipex *data, char **argv)
+{
+	data->read_end = data->ends[0];
+	data->ends[0] = open(argv[1], O_RDONLY);
+	if (data->ends[0] < 0)
+	{
+		perror("Error opening a file\n");
+		return ; // free pids & paths
+	}
+	dup2(data->ends[0], STDIN_FILENO);
+	dup2(data->ends[1], STDOUT_FILENO);
+}
+
+void middle_child(t_pipex *data)
+{
+	dup2(data->read_end, STDIN_FILENO);
+	dup2(data->ends[1], STDOUT_FILENO);
+	data->read_end = data->ends[0];
+}
+
+void	last_child(t_pipex *data, char **argv)
+{
+	close(data->ends[0]);
+	close(data->ends[1]);
+	data->ends[0] = data->read_end;
+	data->ends[1] = open(argv[data->cmds + 2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
+	if (data->ends[1] < 0)
+	{
+		perror("Error opening a file\n");
+		return ; // free pids, paths, cmd & path
+	}
+	dup2(data->ends[0], STDIN_FILENO);
+	dup2(data->ends[1], STDOUT_FILENO);
 }

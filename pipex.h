@@ -19,15 +19,16 @@
 # include <fcntl.h>
 # include "libft/libft.h"
 
-typedef struct s_data
+typedef struct s_pipex
 {
-	int		pipes;
+	int		cmds;
 	int		ends[2];
-	int		infile;
-	int		outfile;
+	int		read_end;
 	char	**paths;
 	char	**cmd;
 	char	*path;
-}	t_data;
+	int		*pids;
+
+}	t_pipex;
 
 #endif
