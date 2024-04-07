@@ -22,6 +22,7 @@
 typedef struct s_pipex
 {
 	int		cmds;
+	int		count;
 	int		ends[2];
 	int		read_end;
 	char	**paths;

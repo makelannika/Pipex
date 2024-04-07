@@ -32,9 +32,11 @@ $(NAME): $(OFILES)
 
 clean:
 	rm -f $(OFILES)
+	make -C $(LIBFTDIR) clean
 
 fclean: clean
 	rm -f $(NAME)
+	make -C $(LIBFTDIR) fclean
 
 re: fclean all
 
