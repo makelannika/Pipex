@@ -12,24 +12,24 @@
 
 #include "libft.h"
 
-int	ft_printnbr(long nbr, int *count)
+int	ft_printnbr(int fd, long nbr, int *count)
 {
 	if (nbr < 0)
 	{
-		if (ft_printchar('-') == -1)
+		if (ft_printchar(fd, '-') == -1)
 			return (-1);
 		(*count)++;
-		ft_printnbr(-nbr, count);
+		ft_printnbr(fd, -nbr, count);
 	}
 	else if (nbr > 9)
 	{
-		if ((ft_printnbr(nbr / 10, count) == -1)
-			|| ft_printnbr(nbr % 10, count) == -1)
+		if ((ft_printnbr(fd, nbr / 10, count) == -1)
+			|| ft_printnbr(fd, nbr % 10, count) == -1)
 			return (-1);
 	}
 	else
 	{
-		if (ft_printchar(nbr + 48) == -1)
+		if (ft_printchar(fd, nbr + 48) == -1)
 			return (-1);
 		(*count)++;
 	}

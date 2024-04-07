@@ -12,15 +12,15 @@
 
 #include "libft.h"
 
-int	ft_printstr(char *str)
+int	ft_printstr(int fd, char *str)
 {
 	int	i;
 
 	i = 0;
 	if (!str)
-		return (ft_printstr("(null)"));
+		return (ft_printstr(fd, "(null)"));
 	while (str[i])
-		if (ft_printchar(str[i++]) == -1)
+		if (ft_printchar(fd, str[i++]) == -1)
 			return (-1);
 	return (i);
 }

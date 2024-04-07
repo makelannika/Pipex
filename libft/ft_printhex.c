@@ -12,30 +12,30 @@
 
 #include "libft.h"
 
-int	ft_printhex(unsigned long nbr, char specifier, int *count)
+int	ft_printhex(int fd, unsigned long nbr, char specifier, int *count)
 {
 	if (nbr > 15)
 	{
-		if ((ft_printhex(nbr / 16, specifier, count) == -1)
-			|| (ft_printhex(nbr % 16, specifier, count) == -1))
+		if ((ft_printhex(fd, nbr / 16, specifier, count) == -1)
+			|| (ft_printhex(fd, nbr % 16, specifier, count) == -1))
 			return (-1);
 	}
 	else if (nbr < 10)
 	{
 		(*count)++;
-		return (ft_printchar(nbr + '0'));
+		return (ft_printchar(fd, nbr + '0'));
 	}
 	else
 	{
 		if (specifier == 'x' || specifier == 'p')
 		{
 			(*count)++;
-			return (ft_printchar(nbr - 10 + 'a'));
+			return (ft_printchar(fd, nbr - 10 + 'a'));
 		}
 		else
 		{
 			(*count)++;
-			return (ft_printchar(nbr - 10 + 'A'));
+			return (ft_printchar(fd, nbr - 10 + 'A'));
 		}
 	}
 	return (*count);
