@@ -21,6 +21,12 @@ void	free_str_arr(char **array)
 		free(array[i++]);
 }
 
+// void	free_int_arr(int *array, int count)
+// {
+// 	while (count)
+// 		free(array[count--]);
+// }
+
 int	close_and_free(t_pipex *data)
 {
 	close(data->ends[0]);
@@ -37,27 +43,6 @@ int	close_and_free(t_pipex *data)
 	return (-1);
 }
 
-void	do_cmd(t_pipex *data, char **envp)
-{
-	data->pids[data->count] = fork();
-	if (data->pids[data->count] < 0)
-	{
-		// error, close fds, free paths, pids, cmd & path
-		return ;
-	}
-	if (data->pids[data->count] == 0)
-	{
-		close(data->read_end);
-		if (execve(data->path, data->cmd, envp) == -1)
-		{
-			perror("Could not execute execve\n");
-			return ;
-		}
-	}
-	else
-		wait(NULL); // waitpid loop
-}
-
 int	find_path(t_pipex *data)
 {
 	int		i;
@@ -68,7 +53,10 @@ int	find_path(t_pipex *data)
 	{
 		temp = ft_strjoin(data->paths[i], data->cmd[0]);
 		if (!temp)
-			return (-1); // error, close fds, free paths, pids & cmd
+		{
+			ft_printf(2, "Error\nStrjoin failed while finding path\n");
+			return (close_and_free(data));
+		}
 		if (access(temp, F_OK) == 0)
 		{
 			data->path = temp;
@@ -77,7 +65,8 @@ int	find_path(t_pipex *data)
 		free(temp);
 		i++;
 	}
-	return (-1); // error, close fds, free paths, pids & cmd
+	ft_printf(2, "Error\nCould not find path\n");
+	return (close_and_free(data));
 }
 
 int	get_cmd(char *arg, t_pipex *data)
@@ -85,57 +74,88 @@ int	get_cmd(char *arg, t_pipex *data)
 	data->cmd = ft_split(arg, 32);
 	if (!data->cmd)
 	{
-		// error, close fds, free paths & pids
-		return (-1);
+		ft_printf(2, "Error\nSplit failed when getting a command\n");
+		return (close_and_free(data));
 	}
 	return (1);
 }
 
-void	last_child(t_pipex *data, char **argv)
+int	do_cmd(t_pipex *data, char **argv, char **envp)
+{
+	data->pids[data->count] = fork();
+	if (data->pids[data->count] < 0)
+	{
+		ft_printf(2, "Error\nFork failed\n");
+		return (close_and_free(data));
+	}
+	if (data->pids[data->count] == 0)
+	{
+		close(data->read_end);
+		if (!get_cmd(argv[data->count + 2], data))
+			return (-1);
+		if (!find_path(data))
+			return (-1);
+		execve(data->path, data->cmd, envp);
+		perror("Error\nCould not execute execve\n");
+		return (close_and_free(data));
+	}
+	else
+		close(data->ends[0]);
+		close(data->ends[1]);
+		wait(NULL);
+		return (1);
+}
+
+int	last_child(t_pipex *data, char **argv)
 {
 	data->ends[0] = data->read_end;
 	data->ends[1] = open(argv[data->cmds + 2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (data->ends[1] < 0)
 	{
 		perror("Error opening the output file\n");
-		return ; // free pids, paths, cmd & path
+		return (close_and_free(data));
 	}
 	dup2(data->ends[0], STDIN_FILENO);
 	dup2(data->ends[1], STDOUT_FILENO);
+	return (1);
 }
 
 int	middle_child(t_pipex *data)
 {
 	if (pipe(data->ends) == -1)
-		return (-1);
+	{
+		ft_printf(2, "Error opening a pipe\n");
+		return (close_and_free(data));
+	}
 	dup2(data->read_end, STDIN_FILENO);
 	dup2(data->ends[1], STDOUT_FILENO);
 	data->read_end = data->ends[0];
+	data->ends[0] = dup(STDIN_FILENO);
 	return (1);
 }
 
-void	first_child(t_pipex *data, char **argv)
+int	first_child(t_pipex *data, char **argv)
 {
 	data->read_end = data->ends[0];
 	data->ends[0] = open(argv[1], O_RDONLY);
 	if (data->ends[0] < 0)
 	{
 		perror("Error opening the input file\n");
-		return ; // free pids & paths
+		return (close_and_free(data));
 	}
 	dup2(data->ends[0], STDIN_FILENO);
 	dup2(data->ends[1], STDOUT_FILENO);
+	return (1);
 }
 
 int	get_fds(t_pipex *data, char **argv)
 {
 	if (data->count == 0)
-		first_child(data, argv);
-	else if (data->count == data->cmds - 1)
-		last_child(data, argv);
+		return (first_child(data, argv));
+	if (data->count == data->cmds - 1)
+		return (last_child(data, argv));
 	else
-		middle_child(data);
-	return (0);
+		return (middle_child(data));
 }
 
 void	add_slash(t_pipex *data)
@@ -211,14 +231,10 @@ int	main(int argc, char **argv, char **envp)
 		exit(EXIT_FAILURE);
 	while (data.count < data.cmds)
 	{
-		get_fds(&data, argv);
-		if (!get_cmd(argv[data.count + 2], &data))
+		if (!get_fds(&data, argv))
 			exit(EXIT_FAILURE);
-		if (!find_path(&data))
+		if (do_cmd(&data, argv, envp) == -1)
 			exit(EXIT_FAILURE);
-		do_cmd(&data, envp);
-		close(data.ends[0]);
-		close(data.ends[1]);
 		data.count++;
 	}
 	exit(EXIT_SUCCESS);
