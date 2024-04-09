@@ -21,12 +21,6 @@ void	free_str_arr(char **array)
 		free(array[i++]);
 }
 
-// void	free_int_arr(int *array, int count)
-// {
-// 	while (count)
-// 		free(array[count--]);
-// }
-
 int	close_and_free(t_pipex *data)
 {
 	close(data->ends[0]);
@@ -100,15 +94,17 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 		return (close_and_free(data));
 	}
 	else
+	{
 		close(data->ends[0]);
 		close(data->ends[1]);
 		wait(NULL);
 		return (1);
+	}
 }
 
 int	last_child(t_pipex *data, char **argv)
 {
-	data->ends[0] = data->read_end;
+	data->ends[0] = dup(data->read_end);
 	data->ends[1] = open(argv[data->cmds + 2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (data->ends[1] < 0)
 	{
@@ -129,7 +125,7 @@ int	middle_child(t_pipex *data)
 	}
 	dup2(data->read_end, STDIN_FILENO);
 	dup2(data->ends[1], STDOUT_FILENO);
-	data->read_end = data->ends[0];
+	data->read_end = dup(data->ends[0]);
 	data->ends[0] = dup(STDIN_FILENO);
 	return (1);
 }
@@ -161,18 +157,20 @@ int	get_fds(t_pipex *data, char **argv)
 void	add_slash(t_pipex *data)
 {
 	int		i = 0;
-	char	*temp;
+	char	*old;
+	char	*new;
 
 	while (data->paths[i])
 	{
-		temp = data->paths[i];
-		data->paths[i] = ft_strjoin(temp, "/");
-		free(temp);
-		if (data->paths[i] == NULL)
+		old = data->paths[i];
+		new = ft_strjoin(old, "/");
+		if (new == NULL)
 		{
-			// free paths
+			close_and_free(data);
 			return ;
 		}
+		free(old);
+		data->paths[i] = new;
 		i++;
 	}
 }
