@@ -73,12 +73,12 @@ int	find_path(t_pipex *data)
 		if (access(temp, F_OK) == 0)
 		{
 			data->path = temp;
-			return (1);
+			return (0);
 		}
 		free(temp);
 		i++;
 	}
-	ft_printf(2, "Error\nCould not find path\n");
+	ft_printf(2, "Command not found");
 	return (close_and_free(data));
 }
 
@@ -90,7 +90,7 @@ int	get_cmd(char *arg, t_pipex *data)
 		ft_printf(2, "Error\nSplit failed when getting a command\n");
 		return (close_and_free(data));
 	}
-	return (1);
+	return (0);
 }
 
 int	do_cmd(t_pipex *data, char **argv, char **envp)
@@ -104,9 +104,9 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 	if (data->pids[data->count] == 0)
 	{
 		close(data->read_end);
-		if (!get_cmd(argv[data->count + 2], data))
+		if (get_cmd(argv[data->count + 2], data) == -1)
 			return (-1);
-		if (!find_path(data))
+		if (find_path(data) == -1)
 			return (-1);
 		execve(data->path, data->cmd, envp);
 		perror("Error\nCould not execute execve\n");
@@ -116,23 +116,23 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 	{
 		close(data->ends[0]);
 		close(data->ends[1]);
-		return (1);
+		return (0);
 	}
 }
 
-int	last_child(t_pipex *data, char **argv)
+int	last_child(t_pipex *data, char **argv, int argc)
 {
 	data->ends[0] = dup(data->read_end);
 	data->ends[1] = open(argv[data->cmds + 2],
 			O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (data->ends[1] < 0)
 	{
-		perror("Error opening the output file\n");
+		perror(argv[argc - 1]);
 		return (close_and_free(data));
 	}
 	dup2(data->ends[0], STDIN_FILENO);
 	dup2(data->ends[1], STDOUT_FILENO);
-	return (1);
+	return (0);
 }
 
 int	middle_child(t_pipex *data)
@@ -146,7 +146,7 @@ int	middle_child(t_pipex *data)
 	dup2(data->ends[1], STDOUT_FILENO);
 	data->read_end = dup(data->ends[0]);
 	data->ends[0] = dup(STDIN_FILENO);
-	return (1);
+	return (0);
 }
 
 int	first_child(t_pipex *data, char **argv)
@@ -155,20 +155,20 @@ int	first_child(t_pipex *data, char **argv)
 	data->ends[0] = open(argv[1], O_RDONLY);
 	if (data->ends[0] < 0)
 	{
-		perror("Error opening the input file\n");
+		perror(argv[1]);
 		return (close_and_free(data));
 	}
 	dup2(data->ends[0], STDIN_FILENO);
 	dup2(data->ends[1], STDOUT_FILENO);
-	return (1);
+	return (0);
 }
 
-int	get_fds(t_pipex *data, char **argv)
+int	get_fds(t_pipex *data, char **argv, int argc)
 {
 	if (data->count == 0)
 		return (first_child(data, argv));
 	if (data->count == data->cmds - 1)
-		return (last_child(data, argv));
+		return (last_child(data, argv, argc));
 	else
 		return (middle_child(data));
 }
@@ -224,7 +224,7 @@ int	init_data(t_pipex *data, int argc, char **envp)
 	data->cmds = argc - 3;
 	data->count = 0;
 	if (pipe(data->ends) == -1)
-		return (close_and_free(data));
+		return (-1);
 	data->read_end = 0;
 	if (!get_paths(envp, data))
 		return (close_and_free(data));
@@ -233,7 +233,7 @@ int	init_data(t_pipex *data, int argc, char **envp)
 	data->pids = malloc(data->cmds * sizeof(int));
 	if (!data->pids)
 		return (close_and_free(data));
-	return (1);
+	return (0);
 }
 
 int	main(int argc, char **argv, char **envp)
@@ -245,11 +245,11 @@ int	main(int argc, char **argv, char **envp)
 		ft_printf(2, "Error\nToo few arguments\n");
 		exit(EXIT_FAILURE);
 	}
-	if (!init_data(&data, argc, envp))
+	if (init_data(&data, argc, envp) == -1)
 		exit(EXIT_FAILURE);
 	while (data.count < data.cmds)
 	{
-		if (!get_fds(&data, argv))
+		if (get_fds(&data, argv, argc) == -1)
 			exit(EXIT_FAILURE);
 		if (do_cmd(&data, argv, envp) == -1)
 			exit(EXIT_FAILURE);
