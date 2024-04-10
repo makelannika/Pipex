@@ -12,12 +12,31 @@
 
 #include "pipex.h"
 
+int	wait_children(int *pids, int count)
+{
+	int	status;
+	int	exitcode;
+	int	i;
+
+	i = 0;
+	while (i < count)
+	{
+		waitpid(pids[i], &status, 0);
+		if (WIFEXITED(status) && i == count - 1)
+			exitcode = WEXITSTATUS(status);
+		else if (WIFSIGNALED(status) && i == count - 1)
+			exitcode = WTERMSIG(status);
+		i++;
+	}
+	exit(exitcode);
+}
+
 void	free_str_arr(char **array)
 {
 	int	i;
 
 	i = 0;
-	while(array[i])
+	while (array[i])
 		free(array[i++]);
 }
 
@@ -97,7 +116,6 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 	{
 		close(data->ends[0]);
 		close(data->ends[1]);
-		wait(NULL);
 		return (1);
 	}
 }
@@ -105,7 +123,8 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 int	last_child(t_pipex *data, char **argv)
 {
 	data->ends[0] = dup(data->read_end);
-	data->ends[1] = open(argv[data->cmds + 2], O_CREAT | O_WRONLY | O_TRUNC, 0644);
+	data->ends[1] = open(argv[data->cmds + 2],
+			O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (data->ends[1] < 0)
 	{
 		perror("Error opening the output file\n");
@@ -156,10 +175,11 @@ int	get_fds(t_pipex *data, char **argv)
 
 void	add_slash(t_pipex *data)
 {
-	int		i = 0;
+	int		i;
 	char	*old;
 	char	*new;
 
+	i = 0;
 	while (data->paths[i])
 	{
 		old = data->paths[i];
@@ -235,5 +255,5 @@ int	main(int argc, char **argv, char **envp)
 			exit(EXIT_FAILURE);
 		data.count++;
 	}
-	exit(EXIT_SUCCESS);
+	wait_children(data.pids, data.cmds);
 }
