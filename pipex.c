@@ -102,9 +102,6 @@ int	get_cmd(char *arg, t_pipex *data)
 		ft_printf(2, "Error\nSplit failed when getting a command\n");
 		return (close_and_free(data));
 	}
-	int i = 0;
-	while (data->cmd[i])
-		ft_printf(2, "cmd: %s\n", data->cmd[i++]);
 	return (0);
 }
 
