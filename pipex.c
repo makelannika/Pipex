@@ -78,18 +78,33 @@ int	find_path(t_pipex *data)
 		free(temp);
 		i++;
 	}
-	ft_printf(2, "Command not found");
-	return (close_and_free(data));
+	ft_printf(2, "Command not found\n");
+	exit(127);
+	// return (close_and_free(data));
 }
 
 int	get_cmd(char *arg, t_pipex *data)
 {
-	data->cmd = ft_split(arg, 32);
+	if (ft_strchr(arg, 39))
+	{
+		data->cmd = ft_split(arg, 39);
+		data->cmd[0][ft_strlen(data->cmd[0]) - 1] = '\0';
+	}
+	else if (ft_strchr(arg, 34))
+	{
+		data->cmd = ft_split(arg, 34);
+		data->cmd[0][ft_strlen(data->cmd[0]) - 1] = '\0';
+	}
+	else
+		data->cmd = ft_split(arg, 32);
 	if (!data->cmd)
 	{
 		ft_printf(2, "Error\nSplit failed when getting a command\n");
 		return (close_and_free(data));
 	}
+	int i = 0;
+	while (data->cmd[i])
+		ft_printf(2, "cmd: %s\n", data->cmd[i++]);
 	return (0);
 }
 
