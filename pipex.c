@@ -79,8 +79,9 @@ int	find_path(t_pipex *data)
 		i++;
 	}
 	ft_printf(2, "Command not found: %s\n", data->cmd[0]);
-	// exit(127);
-	return (close_and_free(data));
+	data->error = true;
+	exit(127);
+	// return (close_and_free(data));
 }
 
 int	get_cmd(char *arg, t_pipex *data)
@@ -102,16 +103,25 @@ int	get_cmd(char *arg, t_pipex *data)
 		ft_printf(2, "Error\nSplit failed when getting a command\n");
 		return (close_and_free(data));
 	}
+	if (data->cmd[0] == NULL)
+	{
+		ft_printf(2, "Command not found: %s\n", "");
+		data->error = true;
+		return (-1);
+	}
 	return (0);
 }
 
 int	path_check(t_pipex *data)
 {
+	ft_printf(2, "in path check\n");
 	if (access(data->cmd[0], F_OK) == 0)
 	{
 		data->path = data->cmd[0];
 		return (0);
 	}
+	ft_printf(2, "Command not found: %s\n", data->cmd[0]);
+	data->error = true;
 	return (-1);
 }
 
@@ -139,15 +149,10 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 				return (-1);
 		}
 		execve(data->path, data->cmd, envp);
-		perror("Error\nCould not execute execve\n");
+		ft_printf(2, "Error\nCould not execute execve\n");
 		return (close_and_free(data));
 	}
-	else
-	{
-		close(data->ends[0]);
-		close(data->ends[1]);
-		return (0);
-	}
+	return (0);
 }
 
 int	last_child(t_pipex *data, char **argv, int argc)
@@ -158,6 +163,7 @@ int	last_child(t_pipex *data, char **argv, int argc)
 	if (data->ends[1] < 0)
 	{
 		perror(argv[argc - 1]);
+		data->error = true;
 		return (close_and_free(data));
 	}
 	dup2(data->ends[0], STDIN_FILENO);
@@ -186,6 +192,7 @@ int	first_child(t_pipex *data, char **argv)
 	if (data->ends[0] < 0)
 	{
 		perror(argv[1]);
+		data->error = true;
 		// return (close_and_free(data));
 	}
 	dup2(data->ends[0], STDIN_FILENO);
@@ -263,6 +270,7 @@ int	init_data(t_pipex *data, int argc, char **envp)
 	data->pids = malloc(data->cmds * sizeof(int));
 	if (!data->pids)
 		return (close_and_free(data));
+	data->error = false;
 	return (0);
 }
 
@@ -279,15 +287,16 @@ int	main(int argc, char **argv, char **envp)
 		exit(EXIT_FAILURE);
 	while (data.count < data.cmds)
 	{
+		data.error = false;
 		if (get_fds(&data, argv, argc) == -1)
 			exit(EXIT_FAILURE);
-		if (data.ends[0] != -1)
+		if (data.error == false)
 		{
 			if (do_cmd(&data, argv, envp) == -1)
 				exit(EXIT_FAILURE);
 		}
-		else
-			close(data.ends[1]);
+		close(data.ends[0]);
+		close(data.ends[1]);
 		data.count++;
 	}
 	wait_children(data.pids, data.cmds);
