@@ -18,6 +18,7 @@
 # include <stdio.h>
 # include <fcntl.h>
 # include <sys/wait.h>
+# include <stdbool.h>
 # include "libft/libft.h"
 
 typedef struct s_pipex
@@ -30,7 +31,7 @@ typedef struct s_pipex
 	char	**cmd;
 	char	*path;
 	int		*pids;
-
+	bool	error;
 }	t_pipex;
 
 #endif

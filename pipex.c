@@ -86,14 +86,14 @@ int	find_path(t_pipex *data)
 
 int	get_cmd(char *arg, t_pipex *data)
 {
-	if (ft_strchr(arg, 39))
-	{
-		data->cmd = ft_split(arg, 39);
-		data->cmd[0][ft_strlen(data->cmd[0]) - 1] = '\0';
-	}
-	else if (ft_strchr(arg, 34))
+	if (ft_strchr(arg, 34))
 	{
 		data->cmd = ft_split(arg, 34);
+		data->cmd[0][ft_strlen(data->cmd[0]) - 1] = '\0';
+	}
+	else if (ft_strchr(arg, 39))
+	{
+		data->cmd = ft_split(arg, 39);
 		data->cmd[0][ft_strlen(data->cmd[0]) - 1] = '\0';
 	}
 	else
