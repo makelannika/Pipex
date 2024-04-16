@@ -78,9 +78,9 @@ int	find_path(t_pipex *data)
 		free(temp);
 		i++;
 	}
-	ft_printf(2, "Command not found\n");
-	exit(127);
-	// return (close_and_free(data));
+	ft_printf(2, "Command not found: %s\n", data->cmd[0]);
+	// exit(127);
+	return (close_and_free(data));
 }
 
 int	get_cmd(char *arg, t_pipex *data)
@@ -105,6 +105,16 @@ int	get_cmd(char *arg, t_pipex *data)
 	return (0);
 }
 
+int	path_check(t_pipex *data)
+{
+	if (access(data->cmd[0], F_OK) == 0)
+	{
+		data->path = data->cmd[0];
+		return (0);
+	}
+	return (-1);
+}
+
 int	do_cmd(t_pipex *data, char **argv, char **envp)
 {
 	data->pids[data->count] = fork();
@@ -118,8 +128,16 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 		close(data->read_end);
 		if (get_cmd(argv[data->count + 2], data) == -1)
 			return (-1);
-		if (find_path(data) == -1)
-			return (-1);
+		if (ft_strchr(data->cmd[0], '/'))
+		{
+			if (path_check(data) == -1)
+				return (-1);
+		}
+		else
+		{
+			if (find_path(data) == -1)
+				return (-1);
+		}
 		execve(data->path, data->cmd, envp);
 		perror("Error\nCould not execute execve\n");
 		return (close_and_free(data));
@@ -168,7 +186,7 @@ int	first_child(t_pipex *data, char **argv)
 	if (data->ends[0] < 0)
 	{
 		perror(argv[1]);
-		return (close_and_free(data));
+		// return (close_and_free(data));
 	}
 	dup2(data->ends[0], STDIN_FILENO);
 	dup2(data->ends[1], STDOUT_FILENO);
@@ -263,8 +281,13 @@ int	main(int argc, char **argv, char **envp)
 	{
 		if (get_fds(&data, argv, argc) == -1)
 			exit(EXIT_FAILURE);
-		if (do_cmd(&data, argv, envp) == -1)
-			exit(EXIT_FAILURE);
+		if (data.ends[0] != -1)
+		{
+			if (do_cmd(&data, argv, envp) == -1)
+				exit(EXIT_FAILURE);
+		}
+		else
+			close(data.ends[1]);
 		data.count++;
 	}
 	wait_children(data.pids, data.cmds);
