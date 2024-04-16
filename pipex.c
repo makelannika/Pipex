@@ -114,13 +114,12 @@ int	get_cmd(char *arg, t_pipex *data)
 
 int	path_check(t_pipex *data)
 {
-	ft_printf(2, "in path check\n");
 	if (access(data->cmd[0], F_OK) == 0)
 	{
 		data->path = data->cmd[0];
 		return (0);
 	}
-	ft_printf(2, "Command not found: %s\n", data->cmd[0]);
+	ft_printf(2, "No such file or directory: %s\n", data->cmd[0]);
 	data->error = true;
 	return (-1);
 }
