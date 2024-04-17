@@ -12,6 +12,21 @@
 
 #include "pipex.h"
 
+int	awk_handler(t_pipex *data, char *arg)
+{
+	data->cmd = malloc(sizeof(char *) * 3);
+	if (!data->cmd)
+		return (-1);
+	data->cmd[0] = ft_substr(arg, 0, 3);
+	if (!data->cmd[0])
+		return (-1);
+	data->cmd[1] = ft_substr(arg, 4, ft_strlen(arg) - 4);
+	if (!data->cmd[1])
+		return (-1);
+	data->cmd[2] = NULL;
+	return (1);
+}
+
 int	space_checker(char *arg)
 {
 	int i = 0;
@@ -99,7 +114,7 @@ int	find_path(t_pipex *data)
 		i++;
 	}
 	ft_printf(2, "Command not found: %s\n", data->cmd[0]);
-	data->error = true;
+	// data->error = true;
 	exit(127);
 	// return (close_and_free(data));
 }
@@ -117,7 +132,12 @@ int	get_cmd(char *arg, t_pipex *data)
 		data->cmd[0][ft_strlen(data->cmd[0]) - 1] = '\0';
 	}
 	else
-		data->cmd = ft_split(arg, 32);
+	{
+		if (ft_strncmp(arg, "awk", 3) == 0)
+			awk_handler(data, arg);
+		else
+			data->cmd = ft_split(arg, 32);
+	}
 	if (!data->cmd)
 	{
 		ft_printf(2, "Error\nSplit failed when getting a command\n");
@@ -126,7 +146,6 @@ int	get_cmd(char *arg, t_pipex *data)
 	if (data->cmd[0] == NULL)
 	{
 		ft_printf(2, "Command not found: %s\n", "");
-		data->error = true;
 		return (-1);
 	}
 	return (0);
@@ -140,7 +159,6 @@ int	path_check(t_pipex *data)
 		return (0);
 	}
 	ft_printf(2, "No such file or directory: %s\n", data->cmd[0]);
-	data->error = true;
 	return (-1);
 }
 
