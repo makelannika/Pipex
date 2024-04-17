@@ -12,6 +12,26 @@
 
 #include "pipex.h"
 
+int	space_checker(char *arg)
+{
+	int i = 0;
+	int flag = 1;
+
+	if (arg[i] == 32)
+		flag = -1;
+	while (arg[i])
+	{
+		if (arg[i] == 32 && arg[i + 1] == 32)
+			flag = -1;
+		i++;
+	}
+	if (arg[i - 1] == 32)
+		flag = -1;
+	if (flag == -1)
+		ft_printf(2, "Command not found: %s\n", arg);
+	return (flag);
+}
+
 int	wait_children(int *pids, int count)
 {
 	int	status;
@@ -135,6 +155,8 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 	if (data->pids[data->count] == 0)
 	{
 		close(data->read_end);
+		if (!space_checker(argv[data->count + 2]))
+			return (-1);
 		if (get_cmd(argv[data->count + 2], data) == -1)
 			return (-1);
 		if (ft_strchr(data->cmd[0], '/'))
