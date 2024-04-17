@@ -292,6 +292,7 @@ char	**get_paths(char **envp, t_pipex *data)
 		}
 		i++;
 	}
+	data->paths = NULL;
 	return (NULL);
 }
 
