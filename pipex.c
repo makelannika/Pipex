@@ -12,26 +12,45 @@
 
 #include "pipex.h"
 
-int	awk_handler(t_pipex *data, char *arg)
+char	*space_handler(char *arg, char *new_arg)
 {
-	data->cmd = malloc(sizeof(char *) * 3);
-	if (!data->cmd)
-		return (-1);
-	data->cmd[0] = ft_substr(arg, 0, 3);
-	if (!data->cmd[0])
-		return (-1);
-	data->cmd[1] = ft_substr(arg, 4, ft_strlen(arg) - 4);
-	if (!data->cmd[1])
-		return (-1);
-	data->cmd[2] = NULL;
-	return (1);
+	int 	i = 0;
+	// char 	*new_arg;
+	int		in_quotes = -1;
+	bool	in_brackets = false;
+
+	// new_arg = malloc(sizeof(char) * (ft_strlen(arg) + 1));
+	// if (!new_arg)
+	// 	return (NULL);
+	while (arg[i])
+	{
+		if (arg[i] == 39)
+		{
+			in_quotes *= -1;
+			i++;
+		}
+		else if (arg[i] == '{')
+			in_brackets = true;
+		else if (arg[i] == '}')
+			in_brackets = false;
+		if (arg[i] == ' ' && (in_quotes == -1 && in_brackets == false))
+			new_arg[i] = 7;
+		else
+			new_arg[i] = arg[i];
+		i++;
+	}
+	new_arg[i] = '\0';
+	ft_printf(2, "new arg: %s\n", new_arg);
+	return (new_arg);
 }
 
 int	space_checker(char *arg)
 {
-	int i = 0;
-	int flag = 1;
+	int i;
+	int flag;
 
+	i = 0;
+	flag = 1;
 	if (arg[i] == 32)
 		flag = -1;
 	while (arg[i])
@@ -114,30 +133,13 @@ int	find_path(t_pipex *data)
 		i++;
 	}
 	ft_printf(2, "Command not found: %s\n", data->cmd[0]);
-	// data->error = true;
 	exit(127);
 	// return (close_and_free(data));
 }
 
 int	get_cmd(char *arg, t_pipex *data)
 {
-	if (ft_strchr(arg, 34))
-	{
-		data->cmd = ft_split(arg, 34);
-		data->cmd[0][ft_strlen(data->cmd[0]) - 1] = '\0';
-	}
-	else if (ft_strchr(arg, 39))
-	{
-		data->cmd = ft_split(arg, 39);
-		data->cmd[0][ft_strlen(data->cmd[0]) - 1] = '\0';
-	}
-	else
-	{
-		if (ft_strncmp(arg, "awk", 3) == 0)
-			awk_handler(data, arg);
-		else
-			data->cmd = ft_split(arg, 32);
-	}
+	data->cmd = ft_split(arg, 7);
 	if (!data->cmd)
 	{
 		ft_printf(2, "Error\nSplit failed when getting a command\n");
@@ -145,9 +147,12 @@ int	get_cmd(char *arg, t_pipex *data)
 	}
 	if (data->cmd[0] == NULL)
 	{
-		ft_printf(2, "Command not found: %s\n", "");
+		ft_printf(2, "Command not found: ""\n");
 		return (-1);
 	}
+	int i = 0;
+	while (data->cmd[i])
+		ft_printf(2, "cmd: %s\n", data->cmd[i++]);
 	return (0);
 }
 
@@ -164,6 +169,10 @@ int	path_check(t_pipex *data)
 
 int	do_cmd(t_pipex *data, char **argv, char **envp)
 {
+	char *new_arg;
+	new_arg = malloc(sizeof(char) * (ft_strlen(argv[data->count + 2]) + 1));
+	if (!new_arg)
+		return (-1);
 	data->pids[data->count] = fork();
 	if (data->pids[data->count] < 0)
 	{
@@ -175,7 +184,10 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 		close(data->read_end);
 		if (!space_checker(argv[data->count + 2]))
 			return (-1);
-		if (get_cmd(argv[data->count + 2], data) == -1)
+		new_arg = space_handler(argv[data->count + 2], argv[data->count + 2]);
+		if (!new_arg)
+			return (-1);
+		if (get_cmd(new_arg, data) == -1)
 			return (-1);
 		if (ft_strchr(data->cmd[0], '/'))
 		{
