@@ -12,36 +12,51 @@
 
 #include "pipex.h"
 
-char	*space_handler(char *arg, char *new_arg)
+char	*quote_remover(char *arg, char *new_arg)
 {
-	int 	i = 0;
-	// char 	*new_arg;
-	int		in_quotes = -1;
-	bool	in_brackets = false;
+	int		i = 0;
+	int 	j = 0;
+	int		count = 0;
 
-	// new_arg = malloc(sizeof(char) * (ft_strlen(arg) + 1));
-	// if (!new_arg)
-	// 	return (NULL);
+	while (arg[i++])
+	{
+		if (arg[i] == 39)
+			count++;
+	}
+	new_arg = malloc(sizeof(char) * (ft_strlen(arg) - count));
+	if (!new_arg)
+		return (NULL);
+	i = 0;
 	while (arg[i])
 	{
 		if (arg[i] == 39)
-		{
-			in_quotes *= -1;
 			i++;
-		}
+		new_arg[j++] = arg[i++];
+	}
+	new_arg[i] = '\0';
+	return (new_arg);
+}
+
+char	*space_handler(char *arg)
+{
+	int 	i = 0;
+	int		in_quotes = -1;
+	bool	in_brackets = false;
+
+	while (arg[i])
+	{
+		if (arg[i] == 39)
+			in_quotes *= -1;
 		else if (arg[i] == '{')
 			in_brackets = true;
 		else if (arg[i] == '}')
 			in_brackets = false;
 		if (arg[i] == ' ' && (in_quotes == -1 && in_brackets == false))
-			new_arg[i] = 7;
+			arg[i] = 7;
 		else
-			new_arg[i] = arg[i];
-		i++;
+			i++;
 	}
-	new_arg[i] = '\0';
-	ft_printf(2, "new arg: %s\n", new_arg);
-	return (new_arg);
+	return (arg);
 }
 
 int	space_checker(char *arg)
@@ -61,8 +76,8 @@ int	space_checker(char *arg)
 	}
 	if (arg[i - 1] == 32)
 		flag = -1;
-	if (flag == -1)
-		ft_printf(2, "Command not found: %s\n", arg);
+	// if (flag == -1)
+		// ft_printf(2, "Command not found: %s\n", arg);
 	return (flag);
 }
 
@@ -137,6 +152,17 @@ int	find_path(t_pipex *data)
 	// return (close_and_free(data));
 }
 
+int	path_check(t_pipex *data)
+{
+	if (access(data->cmd[0], F_OK) == 0)
+	{
+		data->path = data->cmd[0];
+		return (0);
+	}
+	ft_printf(2, "No such file or directory: %s\n", data->cmd[0]);
+	return (-1);
+}
+
 int	get_cmd(char *arg, t_pipex *data)
 {
 	data->cmd = ft_split(arg, 7);
@@ -150,29 +176,35 @@ int	get_cmd(char *arg, t_pipex *data)
 		ft_printf(2, "Command not found: ""\n");
 		return (-1);
 	}
-	int i = 0;
-	while (data->cmd[i])
-		ft_printf(2, "cmd: %s\n", data->cmd[i++]);
+	if (ft_strchr(data->cmd[0], '/'))
+	{
+		if (path_check(data) == -1)
+			return (-1);
+	}
+	else
+	{
+		if (find_path(data) == -1)
+			return (-1);
+	}
 	return (0);
 }
 
-int	path_check(t_pipex *data)
+char	*parse_arg(char *arg, char *new_arg)
 {
-	if (access(data->cmd[0], F_OK) == 0)
-	{
-		data->path = data->cmd[0];
-		return (0);
-	}
-	ft_printf(2, "No such file or directory: %s\n", data->cmd[0]);
-	return (-1);
+	if (!space_checker(arg))
+		return (NULL);
+	space_handler(arg);
+	new_arg = quote_remover(arg, new_arg);
+	if (!new_arg)
+		return (NULL);
+	return (new_arg);
 }
 
 int	do_cmd(t_pipex *data, char **argv, char **envp)
 {
 	char *new_arg;
-	new_arg = malloc(sizeof(char) * (ft_strlen(argv[data->count + 2]) + 1));
-	if (!new_arg)
-		return (-1);
+	
+	new_arg = NULL;
 	data->pids[data->count] = fork();
 	if (data->pids[data->count] < 0)
 	{
@@ -182,23 +214,11 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 	if (data->pids[data->count] == 0)
 	{
 		close(data->read_end);
-		if (!space_checker(argv[data->count + 2]))
-			return (-1);
-		new_arg = space_handler(argv[data->count + 2], argv[data->count + 2]);
+		new_arg = parse_arg(argv[data->count + 2], new_arg);
 		if (!new_arg)
 			return (-1);
 		if (get_cmd(new_arg, data) == -1)
-			return (-1);
-		if (ft_strchr(data->cmd[0], '/'))
-		{
-			if (path_check(data) == -1)
-				return (-1);
-		}
-		else
-		{
-			if (find_path(data) == -1)
-				return (-1);
-		}
+			return (-1); 
 		execve(data->path, data->cmd, envp);
 		ft_printf(2, "Error\nCould not execute execve\n");
 		return (close_and_free(data));
@@ -238,16 +258,22 @@ int	middle_child(t_pipex *data)
 
 int	first_child(t_pipex *data, char **argv)
 {
-	data->read_end = data->ends[0];
+	data->read_end = dup(data->ends[0]);
+	close(data->ends[0]);
 	data->ends[0] = open(argv[1], O_RDONLY);
 	if (data->ends[0] < 0)
 	{
-		perror(argv[1]);
+		if (!data->paths)
+			ft_printf(2, "No such file or directory:  %s\n", argv[2]);
+		else
+			perror(argv[1]);
 		data->error = true;
 		// return (close_and_free(data));
 	}
 	dup2(data->ends[0], STDIN_FILENO);
+	close(data->ends[0]);
 	dup2(data->ends[1], STDOUT_FILENO);
+	close(data->ends[1]);
 	return (0);
 }
 
@@ -283,6 +309,19 @@ void	add_slash(t_pipex *data)
 	}
 }
 
+char	*path_error(t_pipex *data, char **argv)
+{
+	int i;
+
+	i = 0;
+	while(i < data->cmds)
+	{
+		ft_printf(2, "No such file or directory: %s\n", argv[i + 2]);
+		i++;
+	}
+	return (NULL);
+}
+
 char	**get_paths(char **envp, t_pipex *data)
 {
 	int		i;
@@ -305,7 +344,7 @@ char	**get_paths(char **envp, t_pipex *data)
 		i++;
 	}
 	data->paths = NULL;
-	return (NULL);
+	return (data->paths);
 }
 
 int	init_data(t_pipex *data, int argc, char **envp)
@@ -315,8 +354,7 @@ int	init_data(t_pipex *data, int argc, char **envp)
 	if (pipe(data->ends) == -1)
 		return (-1);
 	data->read_end = 0;
-	if (!get_paths(envp, data))
-		return (close_and_free(data));
+	data->paths = get_paths(envp, data);
 	data->cmd = NULL;
 	data->path = NULL;
 	data->pids = malloc(data->cmds * sizeof(int));
