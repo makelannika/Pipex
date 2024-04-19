@@ -84,24 +84,25 @@ int	wait_children(int *pids, int count)
 	exit(exitcode);
 }
 
-void	free_str_arr(char **array)
+int	close_and_free(t_pipex *data)
 {
 	int	i;
 
 	i = 0;
-	while (array[i])
-		free(array[i++]);
-}
-
-int	close_and_free(t_pipex *data)
-{
 	close(data->ends[0]);
 	close(data->ends[1]);
 	close(data->read_end);
 	if (data->paths)
-		free_str_arr(data->paths);
+	{
+		while (data->paths[i])
+			free(data->paths[i++]);
+	}
 	if (data->cmd)
-		free_str_arr(data->cmd);
+	{
+		i = 0;
+		while (data->cmd[i])
+			free(data->cmd[i++]);
+	}
 	if (data->path)
 		free(data->path);
 	if (data->pids)
