@@ -14,10 +14,13 @@
 
 char	*quote_remover(char *arg, char *new_arg)
 {
-	int		i = 0;
-	int 	j = 0;
-	int		count = 0;
+	int	i;
+	int	j;
+	int	count;
 
+	i = 0;
+	j = 0;
+	count = 0;
 	while (arg[i++])
 	{
 		if (arg[i] == 39)
@@ -39,10 +42,13 @@ char	*quote_remover(char *arg, char *new_arg)
 
 char	*space_handler(char *arg)
 {
-	int 	i = 0;
-	int		in_quotes = -1;
-	bool	in_brackets = false;
+	int		i;
+	int		in_quotes;
+	bool	in_brackets;
 
+	i = 0;
+	in_quotes = -1;
+	in_brackets = false;
 	while (arg[i])
 	{
 		if (arg[i] == 39)
@@ -57,28 +63,6 @@ char	*space_handler(char *arg)
 			i++;
 	}
 	return (arg);
-}
-
-int	space_checker(char *arg)
-{
-	int i;
-	int flag;
-
-	i = 0;
-	flag = 1;
-	if (arg[i] == 32)
-		flag = -1;
-	while (arg[i])
-	{
-		if (arg[i] == 32 && arg[i + 1] == 32)
-			flag = -1;
-		i++;
-	}
-	if (arg[i - 1] == 32)
-		flag = -1;
-	// if (flag == -1)
-		// ft_printf(2, "Command not found: %s\n", arg);
-	return (flag);
 }
 
 int	wait_children(int *pids, int count)
@@ -131,6 +115,8 @@ int	find_path(t_pipex *data)
 	char	*temp;
 
 	i = 0;
+	if (!data->paths)
+		return (0);
 	while (data->paths[i])
 	{
 		temp = ft_strjoin(data->paths[i], data->cmd[0]);
@@ -147,13 +133,14 @@ int	find_path(t_pipex *data)
 		free(temp);
 		i++;
 	}
-	ft_printf(2, "Command not found: %s\n", data->cmd[0]);
+	ft_printf(2, "command not found: %s\n", data->cmd[0]);
 	exit(127);
-	// return (close_and_free(data));
 }
 
 int	path_check(t_pipex *data)
 {
+	if (!data->paths)
+		return (0);
 	if (access(data->cmd[0], F_OK) == 0)
 	{
 		data->path = data->cmd[0];
@@ -171,11 +158,6 @@ int	get_cmd(char *arg, t_pipex *data)
 		ft_printf(2, "Error\nSplit failed when getting a command\n");
 		return (close_and_free(data));
 	}
-	if (data->cmd[0] == NULL)
-	{
-		ft_printf(2, "Command not found: ""\n");
-		return (-1);
-	}
 	if (ft_strchr(data->cmd[0], '/'))
 	{
 		if (path_check(data) == -1)
@@ -191,8 +173,11 @@ int	get_cmd(char *arg, t_pipex *data)
 
 char	*parse_arg(char *arg, char *new_arg)
 {
-	if (!space_checker(arg))
+	if (!arg[0] || arg[0] == '.')
+	{
+		ft_printf(2, "permission denied: %s\n", arg);
 		return (NULL);
+	}
 	space_handler(arg);
 	new_arg = quote_remover(arg, new_arg);
 	if (!new_arg)
@@ -202,14 +187,14 @@ char	*parse_arg(char *arg, char *new_arg)
 
 int	do_cmd(t_pipex *data, char **argv, char **envp)
 {
-	char *new_arg;
-	
+	char	*new_arg;
+
 	new_arg = NULL;
 	data->pids[data->count] = fork();
 	if (data->pids[data->count] < 0)
 	{
 		ft_printf(2, "Error\nFork failed\n");
-		return (close_and_free(data));
+		return (-1);
 	}
 	if (data->pids[data->count] == 0)
 	{
@@ -218,10 +203,15 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 		if (!new_arg)
 			return (-1);
 		if (get_cmd(new_arg, data) == -1)
-			return (-1); 
+			return (-1);
+		if (!data->path)
+		{
+			ft_printf(2, "command not found: %s\n", data->cmd[0]);
+			return (-1);
+		}
 		execve(data->path, data->cmd, envp);
 		ft_printf(2, "Error\nCould not execute execve\n");
-		return (close_and_free(data));
+		return (-1);
 	}
 	return (0);
 }
@@ -229,16 +219,19 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 int	last_child(t_pipex *data, char **argv, int argc)
 {
 	data->ends[0] = dup(data->read_end);
+	close(data->read_end);
 	data->ends[1] = open(argv[data->cmds + 2],
 			O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (data->ends[1] < 0)
 	{
-		perror(argv[argc - 1]);
+		ft_printf(2, "permission denied: %s\n", argv[argc - 1]);
 		data->error = true;
-		return (close_and_free(data));
+		return (-1);
 	}
 	dup2(data->ends[0], STDIN_FILENO);
+	close(data->ends[0]);
 	dup2(data->ends[1], STDOUT_FILENO);
+	close(data->ends[1]);
 	return (0);
 }
 
@@ -247,12 +240,14 @@ int	middle_child(t_pipex *data)
 	if (pipe(data->ends) == -1)
 	{
 		ft_printf(2, "Error opening a pipe\n");
-		return (close_and_free(data));
+		return (-1);
 	}
 	dup2(data->read_end, STDIN_FILENO);
+	close(data->read_end);
 	dup2(data->ends[1], STDOUT_FILENO);
+	// close(data->ends[1]);
 	data->read_end = dup(data->ends[0]);
-	data->ends[0] = dup(STDIN_FILENO);
+	close(data->ends[0]);
 	return (0);
 }
 
@@ -263,12 +258,8 @@ int	first_child(t_pipex *data, char **argv)
 	data->ends[0] = open(argv[1], O_RDONLY);
 	if (data->ends[0] < 0)
 	{
-		if (!data->paths)
-			ft_printf(2, "No such file or directory:  %s\n", argv[2]);
-		else
-			perror(argv[1]);
+		ft_printf(2, "permission denied: %s\n", argv[1]);
 		data->error = true;
-		// return (close_and_free(data));
 	}
 	dup2(data->ends[0], STDIN_FILENO);
 	close(data->ends[0]);
@@ -307,19 +298,6 @@ void	add_slash(t_pipex *data)
 		data->paths[i] = new;
 		i++;
 	}
-}
-
-char	*path_error(t_pipex *data, char **argv)
-{
-	int i;
-
-	i = 0;
-	while(i < data->cmds)
-	{
-		ft_printf(2, "No such file or directory: %s\n", argv[i + 2]);
-		i++;
-	}
-	return (NULL);
 }
 
 char	**get_paths(char **envp, t_pipex *data)
@@ -383,7 +361,10 @@ int	main(int argc, char **argv, char **envp)
 		if (data.error == false)
 		{
 			if (do_cmd(&data, argv, envp) == -1)
+			{
+				close_and_free(&data);
 				exit(EXIT_FAILURE);
+			}
 		}
 		close(data.ends[0]);
 		close(data.ends[1]);
