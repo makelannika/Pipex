@@ -12,7 +12,7 @@
 
 #include "pipex.h"
 
-char	*quote_remover(char *arg, char *new_arg)
+char	*quote_remover(t_pipex *data, char *arg)
 {
 	int	i;
 	int	j;
@@ -26,18 +26,18 @@ char	*quote_remover(char *arg, char *new_arg)
 		if (arg[i] == 39)
 			count++;
 	}
-	new_arg = malloc(sizeof(char) * (ft_strlen(arg) - count));
-	if (!new_arg)
+	data->new_arg = malloc(sizeof(char) * (ft_strlen(arg) - count));
+	if (!data->new_arg)
 		return (NULL);
 	i = 0;
 	while (arg[i])
 	{
 		if (arg[i] == 39)
 			i++;
-		new_arg[j++] = arg[i++];
+		data->new_arg[j++] = arg[i++];
 	}
-	new_arg[i] = '\0';
-	return (new_arg);
+	data->new_arg[i] = '\0';
+	return (data->new_arg);
 }
 
 char	*space_handler(char *arg)
@@ -97,6 +97,8 @@ int	close_and_free(t_pipex *data)
 		while (data->paths[i])
 			free(data->paths[i++]);
 	}
+	if (data->new_arg)
+		free(data->new_arg);
 	if (data->cmd)
 	{
 		i = 0;
@@ -172,7 +174,7 @@ int	get_cmd(char *arg, t_pipex *data)
 	return (0);
 }
 
-char	*parse_arg(char *arg, char *new_arg)
+char	*parse_arg(t_pipex *data, char *arg)
 {
 	if (!arg[0] || arg[0] == '.')
 	{
@@ -180,17 +182,14 @@ char	*parse_arg(char *arg, char *new_arg)
 		return (NULL);
 	}
 	space_handler(arg);
-	new_arg = quote_remover(arg, new_arg);
-	if (!new_arg)
+	data->new_arg = quote_remover(data, arg);
+	if (!data->new_arg)
 		return (NULL);
-	return (new_arg);
+	return (data->new_arg);
 }
 
 int	do_cmd(t_pipex *data, char **argv, char **envp)
 {
-	char	*new_arg;
-
-	new_arg = NULL;
 	data->pids[data->count] = fork();
 	if (data->pids[data->count] < 0)
 	{
@@ -200,10 +199,10 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 	if (data->pids[data->count] == 0)
 	{
 		close(data->read_end);
-		new_arg = parse_arg(argv[data->count + 2], new_arg);
-		if (!new_arg)
+		data->new_arg = parse_arg(data, argv[data->count + 2]);
+		if (!data->new_arg)
 			return (-1);
-		if (get_cmd(new_arg, data) == -1)
+		if (get_cmd(data->new_arg, data) == -1)
 			return (-1);
 		if (!data->path)
 		{
@@ -230,8 +229,8 @@ int	last_child(t_pipex *data, char **argv, int argc)
 		return (-1);
 	}
 	dup2(data->ends[0], STDIN_FILENO);
-	close(data->ends[0]);
 	dup2(data->ends[1], STDOUT_FILENO);
+	close(data->ends[0]);
 	close(data->ends[1]);
 	return (0);
 }
@@ -246,9 +245,9 @@ int	middle_child(t_pipex *data)
 	dup2(data->read_end, STDIN_FILENO);
 	close(data->read_end);
 	dup2(data->ends[1], STDOUT_FILENO);
-	// close(data->ends[1]);
 	data->read_end = dup(data->ends[0]);
 	close(data->ends[0]);
+	close(data->ends[1]);
 	return (0);
 }
 
@@ -263,8 +262,8 @@ int	first_child(t_pipex *data, char **argv)
 		data->error = true;
 	}
 	dup2(data->ends[0], STDIN_FILENO);
-	close(data->ends[0]);
 	dup2(data->ends[1], STDOUT_FILENO);
+	close(data->ends[0]);
 	close(data->ends[1]);
 	return (0);
 }
@@ -309,7 +308,7 @@ char	**get_paths(char **envp, t_pipex *data)
 	i = 0;
 	while (envp[i])
 	{
-		if (ft_strncmp(envp[i], "PATH", 4) == 0)
+		if (ft_strncmp(envp[i], "PATH=", 4) == 0)
 		{
 			envpaths = ft_substr(envp[i], 5, ft_strlen(envp[i]) - 5);
 			if (!envpaths)
@@ -329,11 +328,22 @@ char	**get_paths(char **envp, t_pipex *data)
 int	init_data(t_pipex *data, int argc, char **envp)
 {
 	data->cmds = argc - 3;
+	if (data->cmds < 2)
+	{
+		ft_printf(2, "Error\nToo few arguments\n");
+		return (-1);
+	}
 	data->count = 0;
 	if (pipe(data->ends) == -1)
+	{
+		ft_printf(2, "Error opening a pipe\n");
 		return (-1);
+	}
 	data->read_end = 0;
 	data->paths = get_paths(envp, data);
+	if (data->paths[0][ft_strlen(data->paths[0]) - 1] != '/')
+		return (-1);
+	data->new_arg = NULL;
 	data->cmd = NULL;
 	data->path = NULL;
 	data->pids = malloc(data->cmds * sizeof(int));
@@ -347,11 +357,6 @@ int	main(int argc, char **argv, char **envp)
 {
 	t_pipex	data;
 
-	if (argc < 5)
-	{
-		ft_printf(2, "Error\nToo few arguments\n");
-		exit(EXIT_FAILURE);
-	}
 	if (init_data(&data, argc, envp) == -1)
 		exit(EXIT_FAILURE);
 	while (data.count < data.cmds)
@@ -367,8 +372,6 @@ int	main(int argc, char **argv, char **envp)
 				exit(EXIT_FAILURE);
 			}
 		}
-		close(data.ends[0]);
-		close(data.ends[1]);
 		data.count++;
 	}
 	wait_children(data.pids, data.cmds);
