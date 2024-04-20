@@ -67,12 +67,24 @@ static char	*space_handler(char *arg)
 
 char	*parse_arg(t_pipex *data, char *arg)
 {
+	int	i;
+	int	is_empty;
+
+	i = 0;
+	is_empty = 1;
 	if (!arg[0])
 	{
 		ft_printf(2, "permission denied: %s\n", arg);
 		return (NULL);
 	}
 	space_handler(arg);
+	while (arg[i])
+	{
+		if (ft_isprint(arg[i++]))
+			is_empty = 0;
+	}
+	if (is_empty)
+		ft_printf(2, "command not found: %s\n", arg);
 	data->new_arg = quote_remover(data, arg);
 	if (!data->new_arg)
 		return (NULL);

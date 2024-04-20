@@ -37,8 +37,8 @@ static int	middle_child(t_pipex *data)
 		return (-1);
 	}
 	tmp = dup(data->read_end);
-	data->read_end = dup2(data->ends[0], data->read_end);
-	data->ends[0] = dup2(tmp, data->ends[0]);
+	dup2(data->ends[0], data->read_end);
+	dup2(tmp, data->ends[0]);
 	close(tmp);
 	return (0);
 }

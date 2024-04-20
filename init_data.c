@@ -12,7 +12,7 @@
 
 #include "pipex.h"
 
-static void	add_slash(t_pipex *data)
+static int	add_slash(t_pipex *data)
 {
 	int		i;
 	char	*old;
@@ -26,15 +26,16 @@ static void	add_slash(t_pipex *data)
 		if (new == NULL)
 		{
 			close_and_free(data);
-			return ;
+			return (-1);
 		}
 		free(old);
 		data->paths[i] = new;
 		i++;
 	}
+	return (0);
 }
 
-static char	**get_paths(char **envp, t_pipex *data)
+static int	get_paths(char **envp, t_pipex *data)
 {
 	int		i;
 	char	*envpaths;
@@ -46,17 +47,19 @@ static char	**get_paths(char **envp, t_pipex *data)
 		{
 			envpaths = ft_substr(envp[i], 5, ft_strlen(envp[i]) - 5);
 			if (!envpaths)
-				return (NULL);
+				return (-1);
 			data->paths = ft_split(envpaths, ':');
 			free(envpaths);
-			if (data->paths)
-				add_slash(data);
-			return (data->paths);
+			if (!data->paths)
+				return (-1);
+			if (add_slash(data) == -1)
+				return (-1);
+			return (0);
 		}
 		i++;
 	}
 	data->paths = NULL;
-	return (data->paths);
+	return (0);
 }
 
 int	init_data(t_pipex *data, int argc, char **envp)
@@ -69,8 +72,7 @@ int	init_data(t_pipex *data, int argc, char **envp)
 		return (-1);
 	}
 	data->read_end = 0;
-	data->paths = get_paths(envp, data);
-	if (data->paths[0][ft_strlen(data->paths[0]) - 1] != '/')
+	if (get_paths(envp, data) == -1)
 		return (-1);
 	data->new_arg = NULL;
 	data->cmd = NULL;

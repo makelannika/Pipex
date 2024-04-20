@@ -93,6 +93,7 @@ static int	do_cmd(t_pipex *data, char **argv, char **envp)
 	}
 	execve(data->path, data->cmd, envp);
 	ft_printf(2, "Error\nCould not execute execve\n");
+	close_and_free(data);
 	return (-1);
 }
 

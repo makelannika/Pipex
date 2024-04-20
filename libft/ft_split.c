@@ -28,7 +28,7 @@ char	**ft_split(char const *s, char c)
 	return (fill_array(array, s, c));
 }
 
-static int	word_count(char const *s, char c)
+int	word_count(char const *s, char c)
 {
 	int	i;
 	int	count;
@@ -38,11 +38,11 @@ static int	word_count(char const *s, char c)
 	while (s[i])
 	{
 		while (s[i] == c)
-			i ++;
+			i++;
 		if (s[i] && s[i] != c)
-			count ++;
+			count++;
 		while (s[i] && s[i] != c)
-			i ++;
+			i++;
 	}
 	return (count);
 }
