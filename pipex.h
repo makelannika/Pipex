@@ -28,10 +28,18 @@ typedef struct s_pipex
 	int		ends[2];
 	int		read_end;
 	char	**paths;
+	char	*new_arg;
 	char	**cmd;
 	char	*path;
 	int		*pids;
 	bool	error;
 }	t_pipex;
+
+int		init_data(t_pipex *data, int argc, char **envp);
+int		get_fds(t_pipex *data, char **argv, int argc);
+int		forking(t_pipex *data, char **argv, char **envp);
+char	*parse_arg(t_pipex *data, char *arg);
+int		wait_children(int *pids, int count);
+int		close_and_free(t_pipex *data);
 
 #endif

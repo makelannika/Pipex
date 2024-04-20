@@ -12,30 +12,44 @@
 
 NAME		=	pipex
 
+BONUS		=	pipex_bonus
+
 LIBFTDIR	=	libft
 LIBFT		=	$(LIBFTDIR)/libft.a
 
 CFLAGS		=	-Wall -Wextra -Werror
 CC			=	cc
 
-CFILES		=	pipex.c
+MAINC		=	pipex.c
+MAINO		=	$(MAINC:.c=.o)
+
+CFILES		=	init_data.c		fd_utils.c		forking.c	\
+				arg_parsing.c	utils.c
+
+MAINCB		=	pipex_bonus.c
+MAINOB		=	$(MAINCB:.c=.o)
 
 OFILES		=	$(CFILES:.c=.o)
 
-all: $(LIBFT) $(NAME)
+all: $(NAME)
+
+$(NAME): $(OFILES) $(MAINO) $(LIBFT) 
+	$(CC) $(CFLAGS) $(OFILES) $(MAINO) $(LIBFT) -o $(NAME)
+
+bonus: $(BONUS)
+
+$(BONUS): $(OFILES) $(MAINOB) $(LIBFT)
+	$(CC) $(CFLAGS) $(OFILES) $(MAINOB) $(LIBFT) -o $(BONUS)
 
 $(LIBFT):
 	make -C $(LIBFTDIR)
 
-$(NAME): $(OFILES)
-	$(CC) $(OFILES) $(LIBFT) -o $(NAME)
-
 clean:
-	rm -f $(OFILES)
+	rm -f $(OFILES) $(MAINO) $(MAINOB)
 	make -C $(LIBFTDIR) clean
 
 fclean: clean
-	rm -f $(NAME)
+	rm -f $(NAME) pipex_bonus
 	make -C $(LIBFTDIR) fclean
 
 re: fclean all

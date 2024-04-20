@@ -1,22 +1,22 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   pipex.c                                            :+:      :+:    :+:   */
+/*   pipex_bonus.c                                      :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: amakela <amakela@student.hive.fi>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/03/24 18:50:56 by amakela           #+#    #+#             */
-/*   Updated: 2024/03/24 18:50:58 by amakela          ###   ########.fr       */
+/*   Created: 2024/04/20 18:27:50 by amakela           #+#    #+#             */
+/*   Updated: 2024/04/20 18:27:52 by amakela          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "pipex.h"
 
-static int	arg_check(int argc)
+int	arg_check(int argc)
 {
-	if (argc != 5)
+	if (argc < 5)
 	{
-		ft_printf(2, "Error\nInvalid amount of arguments\n");
+		ft_printf(2, "Error\nToo few arguments\n");
 		return (-1);
 	}
 	return (0);
