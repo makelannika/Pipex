@@ -190,6 +190,28 @@ char	*parse_arg(t_pipex *data, char *arg)
 
 int	do_cmd(t_pipex *data, char **argv, char **envp)
 {
+	close(data->read_end);
+	dup2(data->ends[0], STDIN_FILENO);
+	dup2(data->ends[1], STDOUT_FILENO);
+	close(data->ends[0]);
+	close(data->ends[1]);
+	data->new_arg = parse_arg(data, argv[data->count + 2]);
+	if (!data->new_arg)
+		return (-1);
+	if (get_cmd(data->new_arg, data) == -1)
+		return (-1);
+	if (!data->path)
+	{
+		ft_printf(2, "command not found: %s\n", data->cmd[0]);
+		return (-1);
+	}
+	execve(data->path, data->cmd, envp);
+	ft_printf(2, "Error\nCould not execute execve\n");
+	return (-1);
+}
+
+int	forking(t_pipex *data, char **argv, char **envp)
+{
 	data->pids[data->count] = fork();
 	if (data->pids[data->count] < 0)
 	{
@@ -198,20 +220,8 @@ int	do_cmd(t_pipex *data, char **argv, char **envp)
 	}
 	if (data->pids[data->count] == 0)
 	{
-		close(data->read_end);
-		data->new_arg = parse_arg(data, argv[data->count + 2]);
-		if (!data->new_arg)
+		if (do_cmd(data, argv, envp) == -1)
 			return (-1);
-		if (get_cmd(data->new_arg, data) == -1)
-			return (-1);
-		if (!data->path)
-		{
-			ft_printf(2, "command not found: %s\n", data->cmd[0]);
-			return (-1);
-		}
-		execve(data->path, data->cmd, envp);
-		ft_printf(2, "Error\nCould not execute execve\n");
-		return (-1);
 	}
 	return (0);
 }
@@ -228,26 +238,22 @@ int	last_child(t_pipex *data, char **argv, int argc)
 		data->error = true;
 		return (-1);
 	}
-	dup2(data->ends[0], STDIN_FILENO);
-	dup2(data->ends[1], STDOUT_FILENO);
-	close(data->ends[0]);
-	close(data->ends[1]);
 	return (0);
 }
 
 int	middle_child(t_pipex *data)
 {
+	int	tmp;
+
 	if (pipe(data->ends) == -1)
 	{
 		ft_printf(2, "Error opening a pipe\n");
 		return (-1);
 	}
-	dup2(data->read_end, STDIN_FILENO);
-	close(data->read_end);
-	dup2(data->ends[1], STDOUT_FILENO);
-	data->read_end = dup(data->ends[0]);
-	close(data->ends[0]);
-	close(data->ends[1]);
+	tmp = dup(data->read_end);
+	data->read_end = dup2(data->ends[0], data->read_end);
+	data->ends[0] = dup2(tmp, data->ends[0]);
+	close(tmp);
 	return (0);
 }
 
@@ -261,10 +267,6 @@ int	first_child(t_pipex *data, char **argv)
 		ft_printf(2, "permission denied: %s\n", argv[1]);
 		data->error = true;
 	}
-	dup2(data->ends[0], STDIN_FILENO);
-	dup2(data->ends[1], STDOUT_FILENO);
-	close(data->ends[0]);
-	close(data->ends[1]);
 	return (0);
 }
 
@@ -366,12 +368,14 @@ int	main(int argc, char **argv, char **envp)
 			exit(EXIT_FAILURE);
 		if (data.error == false)
 		{
-			if (do_cmd(&data, argv, envp) == -1)
+			if (forking(&data, argv, envp) == -1)
 			{
 				close_and_free(&data);
 				exit(EXIT_FAILURE);
 			}
 		}
+		close(data.ends[0]);
+		close(data.ends[1]);
 		data.count++;
 	}
 	wait_children(data.pids, data.cmds);
