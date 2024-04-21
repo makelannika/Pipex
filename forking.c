@@ -42,8 +42,6 @@ static int	find_path(t_pipex *data)
 
 static int	path_check(t_pipex *data)
 {
-	if (!data->paths)
-		return (0);
 	if (access(data->cmd[0], F_OK) == 0)
 	{
 		data->path = data->cmd[0];
@@ -59,7 +57,7 @@ static int	get_cmd(char *arg, t_pipex *data)
 	if (!data->cmd)
 	{
 		ft_printf(2, "Error\nSplit failed when getting a command\n");
-		return (close_and_free(data));
+		return (-1);
 	}
 	if (data->cmd[0] == '\0')
 	{
