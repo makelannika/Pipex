@@ -20,7 +20,10 @@ static int	last_child(t_pipex *data, char **argv, int argc)
 			O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (data->ends[1] < 0)
 	{
-		ft_printf(2, "permission denied: %s\n", argv[argc - 1]);
+		if (access(argv[data->cmds + 2], F_OK) != 0)
+			ft_printf(2, "no such file or directory: %s\n", argv[1]);
+		else
+			ft_printf(2, "permission denied: %s\n", argv[argc - 1]);
 		data->error = true;
 		return (-1);
 	}
@@ -50,7 +53,10 @@ static int	first_child(t_pipex *data, char **argv)
 	data->ends[0] = open(argv[1], O_RDONLY);
 	if (data->ends[0] < 0)
 	{
-		ft_printf(2, "permission denied: %s\n", argv[1]);
+		if (access(argv[1], F_OK) != 0)
+			ft_printf(2, "no such file or directory: %s\n", argv[1]);
+		else
+			ft_printf(2, "permission denied: %s\n", argv[1]);
 		data->error = true;
 	}
 	return (0);

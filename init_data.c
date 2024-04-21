@@ -25,7 +25,7 @@ static int	add_slash(t_pipex *data)
 		new = ft_strjoin(old, "/");
 		if (new == NULL)
 		{
-			close_and_free(data);
+			// close_and_free(data);
 			return (-1);
 		}
 		free(old);
@@ -73,7 +73,7 @@ int	init_data(t_pipex *data, int argc, char **envp)
 	}
 	data->read_end = 0;
 	if (get_paths(envp, data) == -1)
-		return (-1);
+		return (close_and_free(data));
 	data->new_arg = NULL;
 	data->cmd = NULL;
 	data->path = NULL;

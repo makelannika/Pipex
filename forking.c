@@ -49,7 +49,7 @@ static int	path_check(t_pipex *data)
 		data->path = data->cmd[0];
 		return (0);
 	}
-	ft_printf(2, "No such file or directory: %s\n", data->cmd[0]);
+	ft_printf(2, "no such file or directory: %s\n", data->cmd[0]);
 	return (-1);
 }
 
