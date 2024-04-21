@@ -61,6 +61,11 @@ static int	get_cmd(char *arg, t_pipex *data)
 		ft_printf(2, "Error\nSplit failed when getting a command\n");
 		return (close_and_free(data));
 	}
+	if (data->cmd[0] == '\0')
+	{
+		ft_printf(2, "command not found: %s\n", arg);
+		return (-1);
+	}
 	if (ft_strchr(data->cmd[0], '/'))
 	{
 		if (path_check(data) == -1)

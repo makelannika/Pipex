@@ -23,7 +23,7 @@ static char	*quote_remover(t_pipex *data, char *arg)
 	count = 0;
 	while (arg[i++])
 	{
-		if (arg[i] == 39)
+		if (arg[i] == '\'')
 			count++;
 	}
 	data->new_arg = malloc(sizeof(char) * (ft_strlen(arg) - count));
@@ -32,7 +32,7 @@ static char	*quote_remover(t_pipex *data, char *arg)
 	i = 0;
 	while (arg[i])
 	{
-		if (arg[i] == 39)
+		if (arg[i] == '\'')
 			i++;
 		data->new_arg[j++] = arg[i++];
 	}
@@ -40,7 +40,7 @@ static char	*quote_remover(t_pipex *data, char *arg)
 	return (data->new_arg);
 }
 
-static char	*space_handler(char *arg)
+static void	space_handler(char *arg)
 {
 	int		i;
 	int		in_quotes;
@@ -62,29 +62,16 @@ static char	*space_handler(char *arg)
 		else
 			i++;
 	}
-	return (arg);
 }
 
 char	*parse_arg(t_pipex *data, char *arg)
 {
-	int	i;
-	int	is_empty;
-
-	i = 0;
-	is_empty = 1;
 	if (!arg[0])
 	{
 		ft_printf(2, "permission denied: %s\n", arg);
 		return (NULL);
 	}
 	space_handler(arg);
-	while (arg[i])
-	{
-		if (ft_isprint(arg[i++]))
-			is_empty = 0;
-	}
-	if (is_empty)
-		ft_printf(2, "command not found: %s\n", arg);
 	data->new_arg = quote_remover(data, arg);
 	if (!data->new_arg)
 		return (NULL);
