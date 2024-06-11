@@ -18,25 +18,24 @@ static int	find_path(t_pipex *data)
 	char	*temp;
 
 	i = 0;
-	if (!data->paths)
-		return (0);
-	while (data->paths[i])
+	if (data->paths)
 	{
-		temp = ft_strjoin(data->paths[i], data->cmd[0]);
-		if (!temp)
+		while (data->paths[i])
 		{
-			ft_printf(2, "Error\nStrjoin failed while finding path\n");
-			return (close_and_free(data));
+			temp = ft_strjoin(data->paths[i], data->cmd[0]);
+			if (!temp)
+				return (-1);
+			if (access(temp, F_OK) == 0)
+			{
+				data->path = temp;
+				return (0);
+			}
+			free(temp);
+			i++;
 		}
-		if (access(temp, F_OK) == 0)
-		{
-			data->path = temp;
-			return (0);
-		}
-		free(temp);
-		i++;
 	}
 	ft_printf(2, "command not found: %s\n", data->cmd[0]);
+	close_and_free(data);
 	exit(127);
 }
 
@@ -44,7 +43,7 @@ static int	path_check(t_pipex *data)
 {
 	if (access(data->cmd[0], F_OK) == 0)
 	{
-		data->path = data->cmd[0];
+		data->path = ft_substr(data->cmd[0], 0, ft_strlen(data->cmd[0]));
 		return (0);
 	}
 	ft_printf(2, "no such file or directory: %s\n", data->cmd[0]);
@@ -62,7 +61,8 @@ static int	get_cmd(char *arg, t_pipex *data)
 	if (data->cmd[0] == '\0')
 	{
 		ft_printf(2, "command not found: %s\n", arg);
-		return (-1);
+		close_and_free(data);
+		exit(127);
 	}
 	if (ft_strchr(data->cmd[0], '/'))
 	{
@@ -79,11 +79,14 @@ static int	get_cmd(char *arg, t_pipex *data)
 
 static int	do_cmd(t_pipex *data, char **argv, char **envp)
 {
-	close(data->read_end);
+	if (data->read_end != -1)
+		close(data->read_end);
 	dup2(data->ends[0], STDIN_FILENO);
 	dup2(data->ends[1], STDOUT_FILENO);
-	close(data->ends[0]);
-	close(data->ends[1]);
+	if (data->ends[0] != -1)
+		close(data->ends[0]);
+	if (data->ends[1] != -1)
+		close(data->ends[1]);
 	data->new_arg = parse_arg(data, argv[data->count + 2]);
 	if (!data->new_arg)
 		return (-1);
@@ -95,8 +98,7 @@ static int	do_cmd(t_pipex *data, char **argv, char **envp)
 		return (-1);
 	}
 	execve(data->path, data->cmd, envp);
-	ft_printf(2, "Error\nCould not execute execve\n");
-	close_and_free(data);
+	ft_printf(2, "permission denied: %s\n", data->cmd[0]);
 	return (-1);
 }
 

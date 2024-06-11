@@ -26,7 +26,7 @@ static char	*quote_remover(t_pipex *data, char *arg)
 		if (arg[i] == '\'')
 			count++;
 	}
-	data->new_arg = malloc(sizeof(char) * (ft_strlen(arg) - count));
+	data->new_arg = malloc(sizeof(char) * (ft_strlen(arg) - count + 1));
 	if (!data->new_arg)
 		return (NULL);
 	i = 0;
@@ -36,7 +36,7 @@ static char	*quote_remover(t_pipex *data, char *arg)
 			i++;
 		data->new_arg[j++] = arg[i++];
 	}
-	data->new_arg[i] = '\0';
+	data->new_arg[j] = '\0';
 	return (data->new_arg);
 }
 
@@ -69,7 +69,8 @@ char	*parse_arg(t_pipex *data, char *arg)
 	if (!arg[0])
 	{
 		ft_printf(2, "permission denied: %s\n", arg);
-		return (NULL);
+		close_and_free(data);
+		exit(126);
 	}
 	space_handler(arg);
 	data->new_arg = quote_remover(data, arg);

@@ -19,16 +19,27 @@ int	wait_children(int *pids, int count)
 	int	i;
 
 	i = 0;
+	status = 0;
+	exitcode = 0;
 	while (i < count)
 	{
 		waitpid(pids[i], &status, 0);
 		if (WIFEXITED(status) && i == count - 1)
 			exitcode = WEXITSTATUS(status);
-		else if (WIFSIGNALED(status) && i == count - 1)
+		else if (WIFSIGNALED(status))
 			exitcode = WTERMSIG(status);
 		i++;
 	}
 	exit(exitcode);
+}
+
+static void	free_str_array(char **array)
+{
+	int	i;
+
+	i = 0;
+	while (array[i])
+		free(array[i++]);
 }
 
 int	close_and_free(t_pipex *data)
@@ -36,22 +47,18 @@ int	close_and_free(t_pipex *data)
 	int	i;
 
 	i = 0;
-	close(data->ends[0]);
-	close(data->ends[1]);
-	close(data->read_end);
+	if (data->ends[0] != -1)
+		close(data->ends[0]);
+	if (data->ends[1])
+		close(data->ends[1] != -1);
+	if (data->read_end != -1)
+		close(data->read_end);
 	if (data->paths)
-	{
-		while (data->paths[i])
-			free(data->paths[i++]);
-	}
+		free_str_array(data->paths);
 	if (data->new_arg)
 		free(data->new_arg);
 	if (data->cmd)
-	{
-		i = 0;
-		while (data->cmd[i])
-			free(data->cmd[i++]);
-	}
+		free_str_array(data->cmd);
 	if (data->path)
 		free(data->path);
 	if (data->pids)

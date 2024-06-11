@@ -12,7 +12,7 @@
 
 #include "pipex.h"
 
-int	arg_check(int argc)
+static int	arg_check(int argc)
 {
 	if (argc < 5)
 	{
@@ -26,9 +26,8 @@ int	main(int argc, char **argv, char **envp)
 {
 	t_pipex	data;
 
-	if (arg_check(argc) == -1)
-		exit(EXIT_FAILURE);
-	if (init_data(&data, argc, envp) == -1)
+	if (arg_check(argc) == -1
+		|| init_data(&data, argc, envp) == -1)
 		exit(EXIT_FAILURE);
 	while (data.count < data.cmds)
 	{
@@ -43,8 +42,10 @@ int	main(int argc, char **argv, char **envp)
 				exit(EXIT_FAILURE);
 			}
 		}
-		close(data.ends[0]);
-		close(data.ends[1]);
+		if (data.ends[0] != -1)
+			close(data.ends[0]);
+		if (data.ends[1] != -1)
+			close(data.ends[1]);
 		data.count++;
 	}
 	wait_children(data.pids, data.cmds);

@@ -18,7 +18,7 @@ LIBFTDIR	=	libft
 LIBFT		=	$(LIBFTDIR)/libft.a
 
 CFLAGS		=	-Wall -Wextra -Werror
-CC			=	cc -g
+CC			=	cc -g 
 
 MAINC		=	pipex.c
 MAINO		=	$(MAINC:.c=.o)

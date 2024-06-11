@@ -15,7 +15,8 @@
 static int	last_child(t_pipex *data, char **argv, int argc)
 {
 	data->ends[0] = dup(data->read_end);
-	close(data->read_end);
+	if (data->read_end != -1)
+		close(data->read_end);
 	data->ends[1] = open(argv[data->cmds + 2],
 			O_CREAT | O_WRONLY | O_TRUNC, 0644);
 	if (data->ends[1] < 0)
@@ -37,19 +38,21 @@ static int	middle_child(t_pipex *data)
 	if (pipe(data->ends) == -1)
 	{
 		ft_printf(2, "Error opening a pipe\n");
-		return (-1);
+		return (close_and_free(data));
 	}
 	tmp = dup(data->read_end);
 	dup2(data->ends[0], data->read_end);
 	dup2(tmp, data->ends[0]);
-	close(tmp);
+	if (tmp != -1)
+		close(tmp);
 	return (0);
 }
 
 static int	first_child(t_pipex *data, char **argv)
 {
 	data->read_end = dup(data->ends[0]);
-	close(data->ends[0]);
+	if (data->ends[0] != -1)
+		close(data->ends[0]);
 	data->ends[0] = open(argv[1], O_RDONLY);
 	if (data->ends[0] < 0)
 	{

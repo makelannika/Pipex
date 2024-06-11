@@ -15,7 +15,6 @@
 
 # include <stdlib.h>
 # include <unistd.h>
-# include <stdio.h>
 # include <fcntl.h>
 # include <sys/wait.h>
 # include <stdbool.h>
@@ -33,6 +32,7 @@ typedef struct s_pipex
 	char	*path;
 	int		*pids;
 	bool	error;
+	int		exitcode;
 }	t_pipex;
 
 int		init_data(t_pipex *data, int argc, char **envp);

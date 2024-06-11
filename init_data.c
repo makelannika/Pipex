@@ -24,10 +24,7 @@ static int	add_slash(t_pipex *data)
 		old = data->paths[i];
 		new = ft_strjoin(old, "/");
 		if (new == NULL)
-		{
-			// close_and_free(data);
 			return (-1);
-		}
 		free(old);
 		data->paths[i] = new;
 		i++;
@@ -77,7 +74,7 @@ int	init_data(t_pipex *data, int argc, char **envp)
 	data->new_arg = NULL;
 	data->cmd = NULL;
 	data->path = NULL;
-	data->pids = malloc(data->cmds * sizeof(int));
+	data->pids = ft_calloc(data->cmds, sizeof(int));
 	if (!data->pids)
 		return (close_and_free(data));
 	data->error = false;
